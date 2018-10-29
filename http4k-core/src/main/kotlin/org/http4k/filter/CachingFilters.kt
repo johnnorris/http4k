@@ -15,9 +15,9 @@ open class CacheControlHeaderPart(open val name: String, val value: Duration) {
     fun toHeaderValue(): String = if (value.seconds > 0) "$name=${value.seconds}" else ""
     fun replaceIn(header: String?): String? = header?.let {
         header.split(",")
-                .map { it.trim() }
-                .filterNot { it.startsWith(name)} .plusElement(toHeaderValue())
-                .joinToString(", ")
+            .map { it.trim() }
+            .filterNot { it.startsWith(name) }.plusElement(toHeaderValue())
+            .joinToString(", ")
     } ?: toHeaderValue()
 }
 
@@ -42,7 +42,7 @@ object CachingFilters {
      */
     object Request {
         fun AddIfModifiedSince(clock: Clock, maxAge: Duration) = Filter { next ->
-            {
+            HttpHandler {
                 next(it.header("If-Modified-Since", RFC_1123_DATE_TIME.format(ZonedDateTime.now(clock).minus(maxAge))))
             }
         }
@@ -58,7 +58,7 @@ object CachingFilters {
             abstract fun headersFor(response: org.http4k.core.Response): Headers
 
             override fun invoke(next: HttpHandler): HttpHandler =
-                {
+                HttpHandler {
                     val response = next(it)
                     val headers = if (it.method == GET && predicate(response)) headersFor(response) else emptyList()
                     headers.fold(response) { memo, (first, second) -> memo.header(first, second) }
@@ -87,7 +87,8 @@ object CachingFilters {
 
                 private fun now(response: org.http4k.core.Response) =
                     try {
-                        response.header("Date")?.let(RFC_1123_DATE_TIME::parse)?.let(ZonedDateTime::from) ?: ZonedDateTime.now(clock)
+                        response.header("Date")?.let(RFC_1123_DATE_TIME::parse)?.let(ZonedDateTime::from)
+                            ?: ZonedDateTime.now(clock)
                     } catch (e: Exception) {
                         ZonedDateTime.now(clock)
                     }
@@ -100,7 +101,7 @@ object CachingFilters {
          */
         object AddETag {
             operator fun invoke(predicate: (org.http4k.core.Response) -> Boolean = { it.status.code < 400 }): Filter = Filter { next ->
-                {
+                HttpHandler {
                     val response = next(it)
                     if (predicate(response)) {
                         val hashedBody = MessageDigest.getInstance("MD5")
@@ -120,7 +121,7 @@ object CachingFilters {
         object FallbackCacheControl {
             operator fun invoke(clock: Clock, defaultCacheTimings: DefaultCacheTimings, predicate: (org.http4k.core.Response) -> Boolean = { it.status.code < 400 }): Filter = object : Filter {
                 override fun invoke(next: HttpHandler): HttpHandler =
-                    {
+                    HttpHandler {
                         val response = next(it)
                         if (it.method == GET && predicate(response)) addDefaultCacheHeadersIfAbsent(response) else response
                     }
@@ -132,7 +133,7 @@ object CachingFilters {
                     addDefaultHeaderIfAbsent(response, "Cache-Control") {
                         listOf("public", defaultCacheTimings.maxAge.toHeaderValue(), defaultCacheTimings.staleWhenRevalidateTtl.toHeaderValue(), defaultCacheTimings.staleIfErrorTtl.toHeaderValue()).joinToString(", ")
                     }
-                            .let { addDefaultHeaderIfAbsent(it, "Expires") { RFC_1123_DATE_TIME.format(ZonedDateTime.now(clock).plus(defaultCacheTimings.maxAge.value)) } }
+                        .let { addDefaultHeaderIfAbsent(it, "Expires") { RFC_1123_DATE_TIME.format(ZonedDateTime.now(clock).plus(defaultCacheTimings.maxAge.value)) } }
                         .let { addDefaultHeaderIfAbsent(it, "Vary") { "Accept-Encoding" } }
             }
         }

@@ -37,7 +37,7 @@ abstract class WebsocketServerContract(private val serverConfig: (Int) -> WsServ
     @BeforeEach
     fun before() {
         val routes = routes(
-                "/hello/{name}" bind { r: Request -> Response(OK).body(r.path("name")!!) }
+                "/hello/{name}" bind HttpHandler { r: Request -> Response(OK).body(r.path("name")!!) }
         )
         val ws = websockets(
                 "/hello" bind websockets(

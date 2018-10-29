@@ -5,17 +5,9 @@ import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.present
 import com.natpryce.hamkrest.should.shouldMatch
-import org.http4k.core.Body
-import org.http4k.core.Method.GET
-import org.http4k.core.Method.POST
-import org.http4k.core.Method.PUT
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
+import org.http4k.core.*
+import org.http4k.core.Method.*
 import org.http4k.core.Status.Companion.OK
-import org.http4k.core.Uri
-import org.http4k.core.parse
-import org.http4k.core.then
 import org.http4k.hamkrest.hasBody
 import org.http4k.hamkrest.hasHeader
 import org.junit.jupiter.api.BeforeEach
@@ -23,7 +15,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 
 class ClientFiltersTest {
-    val server = { request: Request ->
+    val server = HttpHandler { request: Request ->
         when (request.uri.path) {
             "/redirect" -> Response(Status.FOUND).header("location", "/ok")
             "/loop" -> Response(Status.FOUND).header("location", "/loop")
@@ -100,12 +92,12 @@ class ClientFiltersTest {
         val svc = ClientFilters.RequestTracing(
             { req, trace -> start = req to trace },
             { req, resp, trace -> end = Triple(req, resp, trace) }
-        ).then { it ->
+        ).then(HttpHandler { it ->
             val actual = ZipkinTraces(it)
             assertThat(actual, equalTo(ZipkinTraces(TraceId("originalTraceId"), actual.spanId, TraceId("originalSpanId"), SamplingDecision.SAMPLE)))
             assertThat(actual.spanId, !equalTo(zipkinTraces.spanId))
             Response(OK)
-        }
+        })
 
         svc(Request(GET, "")) shouldMatch equalTo(Response(OK))
         assertThat(start, equalTo(Request(GET, "") to ZipkinTraces(TraceId("originalTraceId"), end!!.third.spanId, TraceId("originalSpanId"), SamplingDecision.SAMPLE)))
@@ -114,41 +106,41 @@ class ClientFiltersTest {
 
     @Test
     fun `adds new request tracing to outgoing request when not present`() {
-        val svc = ClientFilters.RequestTracing().then { it ->
+        val svc = ClientFilters.RequestTracing().then(HttpHandler { it ->
             assertThat(ZipkinTraces(it), present())
             Response(OK)
-        }
+        })
 
         svc(Request(GET, "")) shouldMatch equalTo(Response(OK))
     }
 
     @Test
     fun `set host on client`() {
-        val handler = ClientFilters.SetHostFrom(Uri.of("http://localhost:123")).then { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) }
+        val handler = ClientFilters.SetHostFrom(Uri.of("http://localhost:123")).then(HttpHandler { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) })
         handler(Request(GET, "/loop")) shouldMatch hasBody("http://localhost:123/loop").and(hasHeader("Host", "localhost:123"))
     }
 
     @Test
     fun `set host without port on client`() {
-        val handler = ClientFilters.SetHostFrom(Uri.of("http://localhost")).then { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) }
+        val handler = ClientFilters.SetHostFrom(Uri.of("http://localhost")).then(HttpHandler { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) })
         handler(Request(GET, "/loop")) shouldMatch hasBody("http://localhost/loop").and(hasHeader("Host", "localhost"))
     }
 
     @Test
     fun `set host without port on client does not set path`() {
-        val handler = ClientFilters.SetHostFrom(Uri.of("http://localhost/a-path")).then { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) }
+        val handler = ClientFilters.SetHostFrom(Uri.of("http://localhost/a-path")).then(HttpHandler { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) })
         handler(Request(GET, "/loop")) shouldMatch hasBody("http://localhost/loop").and(hasHeader("Host", "localhost"))
     }
 
     @Test
     fun `set base uri appends path`() {
-        val handler = ClientFilters.SetBaseUriFrom(Uri.of("http://localhost/a-path")).then { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) }
+        val handler = ClientFilters.SetBaseUriFrom(Uri.of("http://localhost/a-path")).then(HttpHandler { Response(OK).header("Host", it.header("Host")).body(it.uri.toString()) })
         handler(Request(GET, "/loop")) shouldMatch hasBody("http://localhost/a-path/loop").and(hasHeader("Host", "localhost"))
     }
 
     @Test
     fun `set base uri appends path and copy other uri details`() {
-        val handler = ClientFilters.SetBaseUriFrom(Uri.of("http://localhost/a-path?a=b")).then { Response(OK).header("Host", it.header("Host")).body(it.toString()) }
+        val handler = ClientFilters.SetBaseUriFrom(Uri.of("http://localhost/a-path?a=b")).then(HttpHandler { Response(OK).header("Host", it.header("Host")).body(it.toString()) })
 
         val response = handler(Request(GET, "/loop").query("foo", "bar"))
 
@@ -158,19 +150,19 @@ class ClientFiltersTest {
 
     @Test
     fun `gzip request and gunzip response`() {
-        val handler = ClientFilters.GZip().then {
+        val handler = ClientFilters.GZip().then(HttpHandler {
             it shouldMatch hasHeader("content-encoding", "gzip").and(hasBody(equalTo(Body("hello").gzipped())))
             Response(OK).header("content-encoding", "gzip").body(it.body)
-        }
+        })
 
         handler(Request(GET, "/").body("hello")) shouldMatch hasBody("hello")
     }
 
     @Test
     fun `passes through non-gzipped response`() {
-        val handler = ClientFilters.GZip().then {
+        val handler = ClientFilters.GZip().then (HttpHandler {
             Response(OK).body("hello")
-        }
+        })
 
         handler(Request(GET, "/").body("hello")) shouldMatch hasBody("hello")
     }

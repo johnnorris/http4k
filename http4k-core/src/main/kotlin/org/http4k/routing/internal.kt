@@ -1,20 +1,10 @@
 package org.http4k.routing
 
-import org.http4k.core.Body
-import org.http4k.core.ContentType
+import org.http4k.core.*
 import org.http4k.core.ContentType.Companion.OCTET_STREAM
-import org.http4k.core.Filter
-import org.http4k.core.HttpHandler
-import org.http4k.core.Method
 import org.http4k.core.Method.GET
-import org.http4k.core.MimeTypes
-import org.http4k.core.NoOp
-import org.http4k.core.Request
-import org.http4k.core.Response
 import org.http4k.core.Status.Companion.NOT_FOUND
 import org.http4k.core.Status.Companion.OK
-import org.http4k.core.UriTemplate
-import org.http4k.core.then
 import org.http4k.websocket.Websocket
 import org.http4k.websocket.WsConsumer
 import java.nio.ByteBuffer
@@ -24,11 +14,11 @@ internal class ResourceLoadingHandler(private val pathSegments: String,
                                       extraPairs: Map<String, ContentType>) : HttpHandler {
     private val extMap = MimeTypes(extraPairs)
 
-    override fun invoke(p1: Request): Response = if (p1.uri.path.startsWith(pathSegments)) {
-        val path = convertPath(p1.uri.path)
+    override fun invoke(request: Request): Response = if (request.uri.path.startsWith(pathSegments)) {
+        val path = convertPath(request.uri.path)
         resourceLoader.load(path)?.let { url ->
             val lookupType = extMap.forFile(path)
-            if (p1.method == GET && lookupType != OCTET_STREAM) {
+            if (request.method == GET && lookupType != OCTET_STREAM) {
                 Response(OK)
                         .header("Content-Type", lookupType.value)
                         .body(Body(ByteBuffer.wrap(url.openStream().readBytes())))
@@ -56,8 +46,8 @@ internal data class StaticRoutingHttpHandler(private val pathSegments: String,
     private val handlerNoFilter = ResourceLoadingHandler(pathSegments, resourceLoader, extraPairs)
     private val handlerWithFilter = filter.then(handlerNoFilter)
 
-    override fun match(request: Request): HttpHandler? = handlerNoFilter(request).let {
-        if (it.status != NOT_FOUND) filter.then { _: Request -> it } else null
+    override fun match(request: Request): HttpHandler? = handlerNoFilter(request).let { resp ->
+        if (resp.status != NOT_FOUND) filter.then(HttpHandler { resp }) else null
     }
 
     override fun invoke(request: Request): Response = handlerWithFilter(request)
@@ -79,7 +69,7 @@ internal data class AggregateRoutingHttpHandler(
     override fun withBasePath(new: String): RoutingHttpHandler = copy(list = list.map { it.withBasePath(new) })
 }
 
-internal val routeNotFoundHandler: HttpHandler = { Response(NOT_FOUND.description("Route not found")) }
+internal val routeNotFoundHandler = HttpHandler { Response(NOT_FOUND.description("Route not found")) }
 
 internal data class TemplateRoutingHttpHandler(
     private val method: Method?,
@@ -90,7 +80,7 @@ internal data class TemplateRoutingHttpHandler(
 
     override fun match(request: Request): HttpHandler? =
         if (template.matches(request.uri.path) && (method == null || method == request.method))
-            { r: Request -> RoutedResponse(httpHandler(RoutedRequest(r, template)), template) }
+            HttpHandler { r: Request -> RoutedResponse(httpHandler(RoutedRequest(r, template)), template) }
         else null
 
     override fun invoke(request: Request): Response = (match(request) ?: notFoundHandler)(request)

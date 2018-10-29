@@ -3,13 +3,10 @@ package org.http4k.filter
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import org.http4k.core.Filter
+import org.http4k.core.*
 import org.http4k.core.Method.GET
 import org.http4k.core.Method.PUT
-import org.http4k.core.Request
-import org.http4k.core.Response
 import org.http4k.core.Status.Companion.OK
-import org.http4k.core.then
 import org.http4k.filter.CachingFilters.Request.AddIfModifiedSince
 import org.http4k.filter.CachingFilters.Response.AddETag
 import org.http4k.filter.CachingFilters.Response.FallbackCacheControl
@@ -35,19 +32,18 @@ class CachingFiltersTest {
     @Test
     fun `Adds If-Modified-Since to Request`() {
         val maxAge = Duration.ofSeconds(1)
-        val response = AddIfModifiedSince(clock, maxAge).then { Response(OK).header("If-modified-since", it.header("If-modified-since")) }(
-            request)
+        val response = AddIfModifiedSince(clock, maxAge).then(HttpHandler { Response(OK).header("If-modified-since", it.header("If-modified-since")) })(request)
         response shouldMatch hasHeader("If-modified-since", RFC_1123_DATE_TIME.format(ZonedDateTime.now(clock).minus(maxAge)))
     }
 
     @Test
     fun `Add eTag`() {
-        val response = AddETag({ true }).then { Response(OK).body("bob") }(
+        val response = AddETag { true }.then(HttpHandler { Response(OK).body("bob") })(
             request)
         response shouldMatch hasHeader("etag", "9f9d51bc70ef21ca5c14f307980a29d8")
     }
 
-    fun getResponseWith(cacheTimings: DefaultCacheTimings, response: Response) = FallbackCacheControl(clock, cacheTimings).then { response }(request)
+    fun getResponseWith(cacheTimings: DefaultCacheTimings, response: Response) = FallbackCacheControl(clock, cacheTimings).then(HttpHandler { response })(request)
 
     @Test
     fun `FallbackCacheControl - adds the headers if they are not set`() {
@@ -108,5 +104,5 @@ class CachingFiltersTest {
         assertThat(response.headers, equalTo(emptyList()))
     }
 
-    private fun responseWith(CachingFilters: Filter, request: Request) = CachingFilters.then { response }(request)
+    private fun responseWith(CachingFilters: Filter, request: Request) = CachingFilters.then(HttpHandler { response })(request)
 }

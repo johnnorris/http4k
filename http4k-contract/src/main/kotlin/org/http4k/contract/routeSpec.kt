@@ -16,7 +16,7 @@ abstract class ContractRouteSpec internal constructor(val pathFn: (PathSegments)
     open infix operator fun div(next: String) = div(Path.fixed(next))
 
     override fun invoke(nextHandler: HttpHandler): HttpHandler =
-        { req ->
+        HttpHandler { req ->
             val body = routeMeta.body?.let { listOf(it::invoke) } ?: emptyList<(Request) -> Any?>()
             val overallFailure = body.plus(routeMeta.requestParams).fold(null as LensFailure?) { memo, next ->
                 try {

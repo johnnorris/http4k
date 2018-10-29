@@ -7,17 +7,17 @@ import org.http4k.core.with
 import org.http4k.format.Gson
 import org.http4k.format.Xml.asXmlToJsonElement
 import java.io.PrintStream
-import java.util.Random
+import java.util.*
 
 class GenerateXmlDataClasses(out: PrintStream = System.out,
                              idGenerator: () -> Int = { Math.abs(Random().nextInt()) }) : Filter {
 
     private val chains = GenerateDataClasses(Gson, out, idGenerator).then(Filter { next ->
-        {
+        HttpHandler {
             val originalResponse = next(it)
             originalResponse.with(Gson.body().toLens() of (originalResponse.bodyString().asXmlToJsonElement()))
         }
     })
 
-    override fun invoke(p1: HttpHandler): HttpHandler = { chains.then(p1)(it) }
+    override fun invoke(p1: HttpHandler): HttpHandler = HttpHandler { chains.then(p1)(it) }
 }

@@ -36,7 +36,7 @@ object ServerFilters {
         private fun List<String>.joined() = this.joinToString(", ")
 
         operator fun invoke(policy: CorsPolicy) = Filter { next ->
-            {
+            HttpHandler {
                 val response = if (it.method == OPTIONS) Response(OK) else next(it)
                 response.with(
                         Header.required("access-control-allow-origin") of policy.origins.joined(),
@@ -54,7 +54,7 @@ object ServerFilters {
         operator fun invoke(
                 startReportFn: (Request, ZipkinTraces) -> Unit = { _, _ -> },
                 endReportFn: (Request, Response, ZipkinTraces) -> Unit = { _, _, _ -> }): Filter = Filter { next ->
-            {
+            HttpHandler {
                 val fromRequest = ZipkinTraces(it)
                 startReportFn(it, fromRequest)
                 ZipkinTraces.THREAD_LOCAL.set(fromRequest)
@@ -79,7 +79,7 @@ object ServerFilters {
          * Credentials validation function
          */
         operator fun invoke(realm: String, authorize: (Credentials) -> Boolean) = Filter { next ->
-            {
+            HttpHandler {
                 val credentials = it.basicAuthenticationCredentials()
                 if (credentials == null || !authorize(credentials)) {
                     Response(UNAUTHORIZED).header("WWW-Authenticate", "Basic Realm=\"$realm\"")
@@ -101,7 +101,7 @@ object ServerFilters {
          * Population of a RequestContext with custom principal object
          */
         operator fun <T> invoke(realm: String, key: RequestContextLens<T>, lookup: (Credentials) -> T?) = Filter { next ->
-            {
+            HttpHandler {
                 it.basicAuthenticationCredentials()
                         ?.let(lookup)
                         ?.let { found -> next(it.with(key of found)) }
@@ -127,7 +127,7 @@ object ServerFilters {
          * Static token validation function
          */
         operator fun invoke(checkToken: (String) -> Boolean) = Filter { next ->
-            {
+            HttpHandler {
                 if (it.bearerToken()?.let(checkToken) == true) next(it) else Response(UNAUTHORIZED)
             }
         }
@@ -136,7 +136,7 @@ object ServerFilters {
          * Population of a RequestContext with custom principal object
          */
         operator fun <T> invoke(key: RequestContextLens<T>, lookup: (String) -> T?) = Filter { next ->
-            {
+            HttpHandler {
                 it.bearerToken()
                         ?.let(lookup)
                         ?.let { found -> next(it.with(key of found)) }
@@ -164,7 +164,7 @@ object ServerFilters {
     fun CatchLensFailure(failResponseFn: (LensFailure) -> Response = {
         Response(BAD_REQUEST.description(it.failures.joinToString("; ")))
     }) = object : Filter {
-        override fun invoke(next: HttpHandler): HttpHandler = {
+        override fun invoke(next: HttpHandler) = HttpHandler {
             try {
                 next(it)
             } catch (lensFailure: LensFailure) {
@@ -183,7 +183,7 @@ object ServerFilters {
      */
     object CatchAll {
         operator fun invoke(errorStatus: Status = INTERNAL_SERVER_ERROR): Filter = Filter { next ->
-            {
+            HttpHandler  {
                 try {
                     next(it)
                 } catch (e: Exception) {
@@ -200,7 +200,7 @@ object ServerFilters {
      */
     object CopyHeaders {
         operator fun invoke(vararg headers: String): Filter = Filter { next ->
-            { request ->
+            HttpHandler { request ->
                 headers.fold(next(request)) { memo, name ->
                     request.header(name)?.let { memo.header(name, it) } ?: memo
                 }
@@ -222,7 +222,7 @@ object ServerFilters {
      */
     object InitialiseRequestContext {
         operator fun invoke(contexts: Store<RequestContext>): Filter = Filter { next ->
-            {
+            HttpHandler {
                 val context = RequestContext()
                 try {
                     next(contexts.inject(context, it))
@@ -238,7 +238,7 @@ object ServerFilters {
      */
     object SetContentType {
         operator fun invoke(contentType: ContentType): Filter = Filter { next ->
-            {
+            HttpHandler {
                 next(it).with(CONTENT_TYPE of contentType)
             }
         }
@@ -253,7 +253,7 @@ object ServerFilters {
         operator fun invoke(loader: ResourceLoader = Classpath(),
                             toResourceName: (Response) -> String? = { if (it.status.successful) null else it.status.code.toString() }
         ): Filter = Filter { next ->
-            {
+            HttpHandler {
                 val response = next(it)
                 toResourceName(response)
                         ?.let {

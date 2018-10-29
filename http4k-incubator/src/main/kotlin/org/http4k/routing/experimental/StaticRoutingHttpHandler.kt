@@ -1,14 +1,9 @@
 package org.http4k.routing.experimental
 
-import org.http4k.core.Filter
-import org.http4k.core.HttpHandler
+import org.http4k.core.*
 import org.http4k.core.Method.GET
-import org.http4k.core.NoOp
-import org.http4k.core.Request
-import org.http4k.core.Response
 import org.http4k.core.Status.Companion.NOT_FOUND
 import org.http4k.core.Uri.Companion.of
-import org.http4k.core.then
 import org.http4k.routing.Router
 import org.http4k.routing.RoutingHttpHandler
 
@@ -27,8 +22,8 @@ internal data class StaticRoutingHttpHandler(
     private val handlerNoFilter = ResourceLoadingHandler(pathSegments, resourceLoader)
     private val handlerWithFilter = filter.then(handlerNoFilter)
 
-    override fun match(request: Request): HttpHandler? = handlerNoFilter(request).let {
-        if (it.status != NOT_FOUND) filter.then { _: Request -> it } else null
+    override fun match(request: Request): HttpHandler? = handlerNoFilter(request).let { resp ->
+        if (resp.status != NOT_FOUND) filter.then(HttpHandler { resp }) else null
     }
 
     override fun invoke(request: Request): Response = handlerWithFilter(request)

@@ -5,11 +5,7 @@ import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.create
 import okhttp3.internal.http.HttpMethod.permitsRequestBody
-import org.http4k.core.BodyMode
-import org.http4k.core.HttpHandler
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
+import org.http4k.core.*
 import org.http4k.core.Status.Companion.CLIENT_TIMEOUT
 import org.http4k.core.Status.Companion.CONNECTION_REFUSED
 import org.http4k.core.Status.Companion.SERVICE_UNAVAILABLE
@@ -38,7 +34,7 @@ class OkHttp(private val client: OkHttpClient = defaultOkHttpClient(), private v
             else -> SERVICE_UNAVAILABLE
         }.description("Client Error: caused by ${e.localizedMessage}")))
 
-        override fun onResponse(call: Call?, response: okhttp3.Response) = fn(response.asHttp4k(bodyMode))
+        override fun onResponse(call: Call, response: okhttp3.Response) = fn(response.asHttp4k(bodyMode))
     }
 
     override operator fun invoke(request: Request, fn: (Response) -> Unit) =

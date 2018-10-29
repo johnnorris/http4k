@@ -4,12 +4,8 @@ import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.present
 import com.natpryce.hamkrest.should.shouldMatch
-import org.http4k.core.HttpHandler
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.Response
+import org.http4k.core.*
 import org.http4k.core.Status.Companion.OK
-import org.http4k.core.then
 import org.http4k.filter.SamplingDecision.Companion.DO_NOT_SAMPLE
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -28,7 +24,7 @@ class RequestTracingTest {
         val originalParentSpanId = TraceId("originalParentSpanId")
         val traces = ZipkinTraces(originalTraceId, originalSpanId, originalParentSpanId, DO_NOT_SAMPLE)
 
-        val client: HttpHandler = ClientFilters.RequestTracing().then {
+        val client: HttpHandler = ClientFilters.RequestTracing().then(HttpHandler {
             val actual = ZipkinTraces(it)
 
             actual.traceId shouldMatch equalTo(originalTraceId)
@@ -37,7 +33,7 @@ class RequestTracingTest {
             actual.samplingDecision shouldMatch equalTo(DO_NOT_SAMPLE)
 
             Response(OK)
-        }
+        })
 
         val simpleProxyServer: HttpHandler = ServerFilters.RequestTracing().then { client(Request(Method.GET, "/somePath")) }
 

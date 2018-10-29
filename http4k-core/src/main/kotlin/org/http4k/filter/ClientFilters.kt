@@ -1,17 +1,9 @@
 package org.http4k.filter
 
 import org.http4k.base64Encode
-import org.http4k.core.Credentials
-import org.http4k.core.Filter
-import org.http4k.core.HttpHandler
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Uri
+import org.http4k.core.*
 import org.http4k.core.cookie.cookie
 import org.http4k.core.cookie.cookies
-import org.http4k.core.extend
-import org.http4k.core.then
 import org.http4k.filter.ZipkinTraces.Companion.THREAD_LOCAL
 import org.http4k.filter.cookie.BasicCookieStorage
 import org.http4k.filter.cookie.CookieStorage
@@ -29,7 +21,7 @@ object ClientFilters {
         operator fun invoke(
                 startReportFn: (Request, ZipkinTraces) -> Unit = { _, _ -> },
                 endReportFn: (Request, Response, ZipkinTraces) -> Unit = { _, _, _ -> }): Filter = Filter { next ->
-            {
+            HttpHandler {
                 THREAD_LOCAL.get().run {
                     val updated = copy(parentSpanId = spanId, spanId = TraceId.new())
                     startReportFn(it, updated)
@@ -47,7 +39,7 @@ object ClientFilters {
      */
     object SetHostFrom {
         operator fun invoke(uri: Uri): Filter = Filter { next ->
-            {
+            HttpHandler {
                 next(it.uri(it.uri.scheme(uri.scheme).host(uri.host).port(uri.port))
                         .replaceHeader("Host", "${uri.host}${uri.port?.let { port -> ":$port" } ?: ""}"))
             }
@@ -60,13 +52,13 @@ object ClientFilters {
      */
     object SetBaseUriFrom {
         operator fun invoke(uri: Uri): Filter = SetHostFrom(uri).then(Filter { next ->
-            { request -> next(request.uri(uri.extend(request.uri))) }
+            HttpHandler { request -> next(request.uri(uri.extend(request.uri))) }
         })
     }
 
     object BasicAuth {
         operator fun invoke(provider: () -> Credentials): Filter = Filter { next ->
-            { next(it.header("Authorization", "Basic ${provider().base64Encoded()}")) }
+            HttpHandler { next(it.header("Authorization", "Basic ${provider().base64Encoded()}")) }
         }
 
         operator fun invoke(user: String, password: String): Filter = BasicAuth(Credentials(user, password))
@@ -77,14 +69,14 @@ object ClientFilters {
 
     object BearerAuth {
         operator fun invoke(provider: () -> String): Filter = Filter { next ->
-            { next(it.header("Authorization", "Bearer ${provider()}")) }
+            HttpHandler { next(it.header("Authorization", "Bearer ${provider()}")) }
         }
 
         operator fun invoke(token: String): Filter = BearerAuth { token }
     }
 
     object FollowRedirects {
-        operator fun invoke(): Filter = Filter { next -> { makeRequest(next, it) } }
+        operator fun invoke(): Filter = Filter { next -> HttpHandler { makeRequest(next, it) } }
 
         private fun makeRequest(next: HttpHandler, request: Request, attempt: Int = 1): Response =
             next(request).let {
@@ -115,7 +107,7 @@ object ClientFilters {
     object Cookies {
         operator fun invoke(clock: Clock = Clock.systemDefaultZone(),
                             storage: CookieStorage = BasicCookieStorage()): Filter = Filter { next ->
-            { request ->
+            HttpHandler { request ->
                 val now = clock.now()
                 removeExpired(now, storage)
                 val response = next(request.withLocalCookies(storage))

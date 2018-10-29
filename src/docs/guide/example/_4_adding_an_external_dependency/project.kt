@@ -1,15 +1,11 @@
 package guide.example._4_adding_an_external_dependency
 
 import org.http4k.client.OkHttp
-import org.http4k.core.HttpHandler
+import org.http4k.core.*
 import org.http4k.core.Method.GET
 import org.http4k.core.Method.POST
-import org.http4k.core.Request
-import org.http4k.core.Response
 import org.http4k.core.Status.Companion.ACCEPTED
 import org.http4k.core.Status.Companion.OK
-import org.http4k.core.Uri
-import org.http4k.core.then
 import org.http4k.filter.ClientFilters.SetHostFrom
 import org.http4k.filter.ServerFilters.CatchLensFailure
 import org.http4k.lens.Query
@@ -31,17 +27,17 @@ fun MyMathsApp(recorderHttp: HttpHandler): HttpHandler {
     val recorder = Recorder(recorderHttp)
     return CatchLensFailure.then(
         routes(
-            "/ping" bind GET to { _: Request -> Response(OK) },
+            "/ping" bind GET to HttpHandler { Response(OK) },
             "/add" bind GET to calculate(recorder) { it.sum() },
             "/multiply" bind GET to calculate(recorder) { it.fold(1) { memo, next -> memo * next } }
         )
     )
 }
 
-private fun calculate(recorder: Recorder, fn: (List<Int>) -> Int): (Request) -> Response {
+private fun calculate(recorder: Recorder, fn: (List<Int>) -> Int): HttpHandler {
     val values = Query.int().multi.defaulted("value", listOf())
 
-    return {
+    return HttpHandler {
         request: Request ->
         val valuesToCalc = values.extract(request)
         val answer = if (valuesToCalc.isEmpty()) 0 else fn(valuesToCalc)

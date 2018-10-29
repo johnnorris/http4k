@@ -1,23 +1,11 @@
 package cookbook.typesafe_http_contracts
 
-import org.http4k.contract.ApiInfo
-import org.http4k.contract.ApiKey
-import org.http4k.contract.OpenApi
+import org.http4k.contract.*
 import org.http4k.contract.bind
-import org.http4k.contract.bindContract
-import org.http4k.contract.contract
-import org.http4k.contract.div
-import org.http4k.contract.meta
-import org.http4k.core.Body
+import org.http4k.core.*
 import org.http4k.core.ContentType.Companion.TEXT_PLAIN
-import org.http4k.core.Filter
-import org.http4k.core.HttpHandler
-import org.http4k.core.HttpTransaction
 import org.http4k.core.Method.GET
-import org.http4k.core.Response
 import org.http4k.core.Status.Companion.OK
-import org.http4k.core.then
-import org.http4k.core.with
 import org.http4k.filter.CachingFilters.Response.NoCache
 import org.http4k.filter.CorsPolicy
 import org.http4k.filter.ResponseFilters
@@ -37,14 +25,14 @@ import java.time.Clock
 
 fun main(args: Array<String>) {
 
-    fun add(value1: Int, value2: Int): HttpHandler = {
+    fun add(value1: Int, value2: Int): HttpHandler = HttpHandler {
         Response(OK).with(
             Body.string(TEXT_PLAIN).toLens() of (value1 + value2).toString()
         )
     }
 
     val ageQuery = Query.int().required("age")
-    fun echo(name: String): HttpHandler = {
+    fun echo(name: String): HttpHandler = HttpHandler {
         Response(OK).with(
             Body.string(TEXT_PLAIN).toLens() of "hello $name you are ${ageQuery(it)}"
         )
@@ -63,7 +51,7 @@ fun main(args: Array<String>) {
             summary = "add"
             description = "Adds 2 numbers together"
             returning("The result" to OK)
-        } bindContract GET to { Response(OK).body("pong") },
+        } bindContract GET to HttpHandler { Response(OK).body("pong") },
         "/add" / Path.int().of("value1") / Path.int().of("value2") meta {
             summary = "add"
             description = "Adds 2 numbers together"

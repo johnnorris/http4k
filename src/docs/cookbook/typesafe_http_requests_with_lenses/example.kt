@@ -1,13 +1,7 @@
 package cookbook.typesafe_http_requests_with_lenses
 
-import org.http4k.core.Body
+import org.http4k.core.*
 import org.http4k.core.ContentType.Companion.TEXT_PLAIN
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
-import org.http4k.core.then
-import org.http4k.core.with
 import org.http4k.filter.ServerFilters
 import org.http4k.lens.Header
 import org.http4k.lens.Query
@@ -22,7 +16,7 @@ fun main(args: Array<String>) {
     val ageQuery = Query.int().optional("age")
     val childrenBody = Body.string(TEXT_PLAIN).map({ it.split(",").map(::Child) }, { it.map { it.name }.joinToString() }).toLens()
 
-    val endpoint = {
+    val endpoint = HttpHandler {
         request: Request ->
 
         val name: String = nameHeader(request)

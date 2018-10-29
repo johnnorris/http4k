@@ -5,10 +5,7 @@ import org.http4k.chaos.ChaosBehaviours.None
 import org.http4k.chaos.ChaosStages.Repeat
 import org.http4k.chaos.ChaosStages.Wait
 import org.http4k.chaos.ChaosTriggers.Always
-import org.http4k.core.Filter
-import org.http4k.core.NoOp
-import org.http4k.core.Request
-import org.http4k.core.then
+import org.http4k.core.*
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -16,7 +13,7 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * Defines a periodic element during which a particular ChaosBehaviour is active.
  */
-interface Stage: (Request) -> Filter?
+interface Stage : (Request) -> Filter?
 
 /**
  * Chain the next ChaosBehaviour to apply when this stage is finished.
@@ -43,7 +40,7 @@ fun Stage.until(trigger: Trigger): Stage = object : Stage {
  * Converts this chaos behaviour to a standard http4k Filter.
  */
 fun Stage.asFilter(): Filter = Filter { next ->
-    {
+    HttpHandler {
         (this@asFilter(it) ?: Filter.NoOp).then(next)(it)
     }
 }
@@ -57,10 +54,10 @@ object ChaosStages {
         private val current by lazy { AtomicReference(newStageFn()) }
 
         override fun invoke(request: Request): Filter? =
-                current.get()(request) ?: run {
-                    current.set(newStageFn())
-                    current.get()(request)
-                }
+            current.get()(request) ?: run {
+                current.set(newStageFn())
+                current.get()(request)
+            }
 
         override fun toString() = "Repeat [${current.get()}]"
     }
@@ -87,9 +84,9 @@ fun JsonNode.asStage(clock: Clock = Clock.systemUTC()): Stage {
         "wait" -> Wait
         "repeat" -> Repeat {
             this["stages"]!!
-                    .elements().asSequence()
-                    .map { it.asStage(clock) }
-                    .reduce { acc, next -> acc.then(next) }
+                .elements().asSequence()
+                .map { it.asStage(clock) }
+                .reduce { acc, next -> acc.then(next) }
         }
         "trigger" -> this["behaviour"]!!.asBehaviour().appliedWhen(this["trigger"]!!.asTrigger(clock))
         else -> throw IllegalArgumentException("unknown stage")

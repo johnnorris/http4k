@@ -1,8 +1,5 @@
 import org.http4k.client.ApacheClient
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
+import org.http4k.core.*
 import org.http4k.core.Status.Companion.OK
 import org.http4k.server.Jetty
 import org.http4k.server.Netty
@@ -22,7 +19,7 @@ data class Result(val name: String, val time: Long, val totalRequests: Int, val 
 
 fun testWith(threads: Int, reps: Int, fn: (Int) -> ServerConfig, port: Int): Result {
     val config = fn(port)
-    val server = { _: Request -> Response(Status.OK).body(System.nanoTime().toString()) }.asServer(config).start()
+    val server = HttpHandler { Response(OK).body(System.nanoTime().toString()) }.asServer(config).start()
     Thread.sleep(1000)
 
     val client = ApacheClient()

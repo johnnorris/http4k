@@ -4,14 +4,10 @@ import com.natpryce.hamkrest.and
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import org.http4k.core.Body
-import org.http4k.core.HttpTransaction
+import org.http4k.core.*
 import org.http4k.core.HttpTransaction.Companion.ROUTING_GROUP_LABEL
 import org.http4k.core.Method.GET
-import org.http4k.core.Request
-import org.http4k.core.Response
 import org.http4k.core.Status.Companion.OK
-import org.http4k.core.then
 import org.http4k.filter.ResponseFilters.ReportHttpTransaction
 import org.http4k.hamkrest.hasBody
 import org.http4k.hamkrest.hasHeader
@@ -49,7 +45,7 @@ class ResponseFiltersTest {
             assertThat(req, equalTo(request))
             assertThat(resp, equalTo(response))
             assertThat(duration, equalTo(ofSeconds(1)))
-        }.then { response }(request)
+        }.then(HttpHandler { response })(request)
 
         assertTrue(called)
     }
@@ -57,7 +53,7 @@ class ResponseFiltersTest {
     @Test
     fun `gzip response and adds gzip content encoding if the request has accept-encoding of gzip`() {
         fun assertSupportsZipping(body: String) {
-            val zipped = ResponseFilters.GZip().then { Response(OK).body(body) }
+            val zipped = ResponseFilters.GZip().then(HttpHandler { Response(OK).body(body) })
             zipped(Request(GET, "").header("accept-encoding", "gzip")) shouldMatch hasBody(equalTo(Body(body).gzipped())).and(hasHeader("content-encoding", "gzip"))
         }
         assertSupportsZipping("foobar")
@@ -67,7 +63,7 @@ class ResponseFiltersTest {
     @Test
     fun `gunzip response which has gzip content encoding`() {
         fun assertSupportsUnzipping(body: String) {
-            val handler = ResponseFilters.GunZip().then { Response(OK).header("content-encoding", "gzip").body(Body(body).gzipped()) }
+            val handler = ResponseFilters.GunZip().then(HttpHandler { Response(OK).header("content-encoding", "gzip").body(Body(body).gzipped()) })
             handler(Request(GET, "")) shouldMatch hasBody(body).and(hasHeader("content-encoding", "gzip"))
         }
         assertSupportsUnzipping("foobar")
@@ -77,15 +73,15 @@ class ResponseFiltersTest {
     @Test
     fun `passthrough gunzip response with no content encoding when request has no accept-encoding of gzip`() {
         val body = "foobar"
-        val handler = ResponseFilters.GunZip().then { Response(OK).header("content-encoding", "zip").body(body) }
+        val handler = ResponseFilters.GunZip().then(HttpHandler { Response(OK).header("content-encoding", "zip").body(body) })
         handler(Request(GET, "")) shouldMatch hasBody(body).and(!hasHeader("content-encoding", "gzip"))
     }
 
     @Test
     fun `reporting latency for unknown route`() {
         var called: String? = null
-        val filter = ResponseFilters.ReportRouteLatency(Clock.systemUTC(), { identity, _ -> called = identity })
-        val handler = filter.then { Response(OK) }
+        val filter = ResponseFilters.ReportRouteLatency(Clock.systemUTC()) { identity, _ -> called = identity }
+        val handler = filter.then(HttpHandler { Response(OK) })
 
         handler(Request(GET, ""))
 
@@ -95,7 +91,7 @@ class ResponseFiltersTest {
     @Test
     fun `reporting latency for known route`() {
         var called: String? = null
-        val filter = ResponseFilters.ReportRouteLatency(Clock.systemUTC(), { identity, _ -> called = identity })
+        val filter = ResponseFilters.ReportRouteLatency(Clock.systemUTC()) { identity, _ -> called = identity }
         val handler = filter.then(routes("/bob/{anything:.*}" bind GET to { Response(OK) }))
 
         handler(Request(GET, "/bob/dir/someFile.html"))
@@ -109,7 +105,7 @@ class ResponseFiltersTest {
 
         val filter = ReportHttpTransaction(fixed(EPOCH, systemDefault())) { transaction = it }
 
-        val handler = filter.then { Response(OK) }
+        val handler = filter.then(HttpHandler { Response(OK) })
 
         val request = Request(GET, "")
 
@@ -127,7 +123,7 @@ class ResponseFiltersTest {
         }
 
         val handler = filter.then(
-                routes("/sue" bind routes("/bob/{name}" bind GET to { Response(OK) }))
+            routes("/sue" bind routes("/bob/{name}" bind GET to { Response(OK) }))
         )
 
         val request = Request(GET, "/sue/bob/rita")
@@ -135,6 +131,6 @@ class ResponseFiltersTest {
         handler(request)
 
         assertThat(transaction, equalTo(HttpTransaction(request,
-                Response(OK), ZERO, mapOf(ROUTING_GROUP_LABEL to "sue/bob/{name}"))))
+            Response(OK), ZERO, mapOf(ROUTING_GROUP_LABEL to "sue/bob/{name}"))))
     }
 }

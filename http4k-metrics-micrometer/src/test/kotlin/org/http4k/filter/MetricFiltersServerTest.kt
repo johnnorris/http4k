@@ -4,13 +4,8 @@ import com.natpryce.hamkrest.and
 import com.natpryce.hamkrest.should.shouldMatch
 import io.micrometer.core.instrument.Tag
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
-import org.http4k.core.Method
-import org.http4k.core.Method.DELETE
-import org.http4k.core.Method.GET
-import org.http4k.core.Method.POST
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
+import org.http4k.core.*
+import org.http4k.core.Method.*
 import org.http4k.core.Status.Companion.INTERNAL_SERVER_ERROR
 import org.http4k.core.Status.Companion.OK
 import org.http4k.hamkrest.hasBody
@@ -39,7 +34,7 @@ class MetricFiltersServerTest {
             ).withFilter(requestCounter),
             "/unmetered" bind routes(
                 "one" bind GET to { Response(OK) },
-                "two" bind DELETE to { Response(INTERNAL_SERVER_ERROR) }
+                "two" bind DELETE to HttpHandler { Response(INTERNAL_SERVER_ERROR) }
             ),
             "/otherTimed" bind static().withFilter(requestTimer),
             "/otherCounted" bind static().withFilter(requestCounter)
@@ -150,6 +145,6 @@ class MetricFiltersServerTest {
 
     private fun hasNoRequestCounter(method: Method, path: String, status: Status) =
         hasCounter("http.server.request.count",
-            listOf(Tag.of("path", path),Tag.of( "method", method.name), Tag.of("status", status.code.toString()))
+            listOf(Tag.of("path", path), Tag.of("method", method.name), Tag.of("status", status.code.toString()))
         ).not()
 }

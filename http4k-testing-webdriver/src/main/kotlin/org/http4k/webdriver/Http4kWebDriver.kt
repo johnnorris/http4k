@@ -1,27 +1,17 @@
 package org.http4k.webdriver
 
-import org.http4k.core.Filter
-import org.http4k.core.HttpHandler
+import org.http4k.core.*
 import org.http4k.core.Method.GET
-import org.http4k.core.Request
-import org.http4k.core.Status
-import org.http4k.core.Uri
-import org.http4k.core.then
 import org.http4k.filter.ClientFilters
 import org.http4k.filter.cookie.CookieStorage
 import org.http4k.filter.cookie.LocalCookie
-import org.openqa.selenium.Alert
-import org.openqa.selenium.By
-import org.openqa.selenium.Cookie
-import org.openqa.selenium.WebDriver
+import org.openqa.selenium.*
 import org.openqa.selenium.WebDriver.Navigation
-import org.openqa.selenium.WebElement
 import java.net.URL
 import java.nio.file.Paths
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.Date
-import java.util.UUID
+import java.util.*
 import org.http4k.core.cookie.Cookie as HCookie
 
 typealias Navigate = (Request) -> Unit
@@ -33,9 +23,9 @@ interface Http4KNavigation : Navigation {
 
 class Http4kWebDriver(initialHandler: HttpHandler) : WebDriver {
     private val handler = ClientFilters.FollowRedirects()
-            .then(ClientFilters.Cookies(storage = cookieStorage()))
-            .then(Filter { next -> { request -> latestUri = request.uri.toString(); next(request) } })
-            .then(initialHandler)
+        .then(ClientFilters.Cookies(storage = cookieStorage()))
+        .then(Filter { next -> HttpHandler { request -> latestUri = request.uri.toString(); next(request) } })
+        .then(initialHandler)
 
     private var current: Page? = null
     private var activeElement: WebElement? = null
@@ -65,7 +55,7 @@ class Http4kWebDriver(initialHandler: HttpHandler) : WebDriver {
     }
 
     private fun HCookie.toWebDriver(): Cookie = Cookie(name, value, domain, path,
-            expires?.let { Date.from(it.atZone(ZoneId.systemDefault()).toInstant()) }, secure, httpOnly)
+        expires?.let { Date.from(it.atZone(ZoneId.systemDefault()).toInstant()) }, secure, httpOnly)
 
     private fun LocalCookie.toWebDriver(): Http4kWebDriver.StoredCookie = StoredCookie(cookie.toWebDriver(), this)
 

@@ -75,7 +75,7 @@ Filters are also trivial to test independently, because they are generally just 
 val app: HttpHandler = routes(
     "/app" bind GET to decoratedApp,
     "/other" bind routes(
-        "/delete" bind DELETE to { _: Request -> Response(OK) },
+        "/delete" bind DELETE to { Response(OK) },
         "/post/{name}" bind POST to { request: Request -> Response(OK).body("you POSTed to ${request.path("name")}") }
     )
 )
