@@ -73,8 +73,6 @@ object Versions {
 
     const val micrometer_core: String = "1.0.7"
 
-    const val micrometer_registry_prometheus: String = "1.0.7"
-
     const val moshi: String = "1.7.0"
 
     const val moshi_kotlin: String = "1.7.0"
