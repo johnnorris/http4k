@@ -21,7 +21,7 @@ import java.io.InputStream
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.lang.management.ManagementFactory
-import java.util.*
+import java.util.Random
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -42,7 +42,7 @@ abstract class StreamingContract(private val config: StreamingTestConfiguration 
     private var countdown: CountDownLatch = CountDownLatch(config.beeps * 2)
 
     val server = routes(
-        "/stream-response" bind GET to { Response(Status.OK).body(beeper()) },
+        "/stream-response" bind GET to { _: Request -> Response(Status.OK).body(beeper()) },
         "/stream-request" bind POST to { request: Request ->
             captureReceivedStream { request.body.stream }; Response(Status.OK)
         }

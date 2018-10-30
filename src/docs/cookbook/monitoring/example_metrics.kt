@@ -15,7 +15,7 @@ import java.time.Duration
 
 fun main(args: Array<String>) {
 
-    val app = routes("foo/{name}" bind HttpHandler { Response(OK) })
+    val app = routes("foo/{name}" bind { _: Request -> Response(OK) })
 
     fun metricConsumer(name: String, time: Duration) = println("$name ${time.toMillis()}ms")
 

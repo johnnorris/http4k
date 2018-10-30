@@ -46,7 +46,7 @@ interface Filter : (HttpHandler) -> HttpHandler
 Filters are designed to simply compose together (using `then()`) , creating reusable stacks of behaviour which can then be applied to any `HttpHandler`. 
 For example, to add Basic Auth and latency reporting to a service:
 ```kotlin
-val handler = { Response(OK) }
+val handler = { _: Request -> Response(OK) }
 
 val myFilter = Filter {
     next: HttpHandler -> {

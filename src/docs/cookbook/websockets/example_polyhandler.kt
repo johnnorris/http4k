@@ -1,6 +1,5 @@
 package cookbook.websockets
 
-import org.http4k.core.HttpHandler
 import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status.Companion.OK
@@ -26,7 +25,7 @@ fun main(args: Array<String>) {
             ws.onClose { println("$name is closing") }
         }
     )
-    val http = HttpHandler { Response(OK).body("hiya world") }
+    val http = { _: Request -> Response(OK).body("hiya world") }
 
     PolyHandler(http, ws).asServer(Jetty(9000)).start()
 }

@@ -34,7 +34,7 @@ class ContractRoute internal constructor(internal val method: Method,
                         .extract(spec.pathLenses.toList())
                         ?.let {
                             if (request.method == OPTIONS) {
-                                HttpHandler { Response(OK) }
+                                { Response(OK) }
                             } else spec.then(toHandler(it))
                         }
                 } catch (e: LensFailure) {

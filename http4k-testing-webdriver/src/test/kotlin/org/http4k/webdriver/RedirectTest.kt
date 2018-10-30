@@ -32,7 +32,7 @@ class RedirectTest {
                 Response(OK).body("You made it!")
             }()
         },
-        startingUrl bind Method.GET to {
+        startingUrl bind Method.GET to { _: Request ->
             Response(SEE_OTHER)
                 .header("Location", finalUrl)
                 .cookie(org.http4k.core.cookie.Cookie(cookieKey, cookieValue))

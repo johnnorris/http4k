@@ -33,7 +33,7 @@ class AnswerRecorder(private val httpClient: HttpHandler) : (Int) -> Unit {
     }
 }
 
-fun myMathsEndpoint(fn: (Int, Int) -> Int, recorder: (Int) -> Unit): HttpHandler = HttpHandler { req ->
+fun myMathsEndpoint(fn: (Int, Int) -> Int, recorder: (Int) -> Unit): HttpHandler = { req ->
     val answer = fn(req.query("first")!!.toInt(), req.query("second")!!.toInt())
     recorder(answer)
     Response(OK).body("the answer is $answer")

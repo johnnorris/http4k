@@ -8,13 +8,21 @@ import org.http4k.chaos.ChaosStages.Repeat
 import org.http4k.chaos.ChaosStages.Variable
 import org.http4k.chaos.ChaosStages.Wait
 import org.http4k.chaos.ChaosTriggers.Always
-import org.http4k.core.*
-import org.http4k.core.Method.*
+import org.http4k.core.Filter
+import org.http4k.core.Method.DELETE
+import org.http4k.core.Method.GET
+import org.http4k.core.Method.OPTIONS
+import org.http4k.core.Method.POST
+import org.http4k.core.Method.TRACE
+import org.http4k.core.Request
+import org.http4k.core.Response
+import org.http4k.core.Status
 import org.http4k.core.Status.Companion.GATEWAY_TIMEOUT
 import org.http4k.core.Status.Companion.INTERNAL_SERVER_ERROR
 import org.http4k.core.Status.Companion.I_M_A_TEAPOT
 import org.http4k.core.Status.Companion.NOT_FOUND
 import org.http4k.core.Status.Companion.OK
+import org.http4k.core.then
 import org.http4k.format.Jackson.asJsonObject
 import org.http4k.hamkrest.hasHeader
 import org.http4k.hamkrest.hasStatus
@@ -115,5 +123,5 @@ class ChaosStageOperationsTest {
 }
 
 private fun chaosStage(status: Status): Stage = object : Stage {
-    override fun invoke(tx: Request) = Filter { HttpHandler { Response(status) } }
+    override fun invoke(tx: Request) = Filter { { Response(status) } }
 }

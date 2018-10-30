@@ -1,7 +1,6 @@
 package org.http4k.filter
 
 import org.http4k.core.Filter
-import org.http4k.core.HttpHandler
 import org.http4k.core.HttpTransaction
 import org.http4k.core.Response
 import java.time.Clock
@@ -15,7 +14,7 @@ object ResponseFilters {
      */
     object Tap {
         operator fun invoke(fn: (Response) -> Unit) = Filter { next ->
-            HttpHandler {
+            {
                 next(it).let {
                     fn(it)
                     it
@@ -31,7 +30,7 @@ object ResponseFilters {
      */
     object ReportHttpTransaction {
         operator fun invoke(clock: Clock = Clock.systemUTC(), transactionLabeller: HttpTransactionLabeller = { it }, recordFn: (HttpTransaction) -> Unit): Filter = Filter { next ->
-            HttpHandler {
+            {
                 clock.instant().let { start ->
                     next(it).apply {
                         recordFn(transactionLabeller(HttpTransaction(it, this, between(start, clock.instant()))))
@@ -59,7 +58,7 @@ object ResponseFilters {
      */
     object GZip {
         operator fun invoke() = Filter { next ->
-            HttpHandler {
+            {
                 val originalResponse = next(it)
                 if ((it.header("accept-encoding") ?: "").contains("gzip", true)) {
                     originalResponse.let {
@@ -75,7 +74,7 @@ object ResponseFilters {
      */
     object GunZip {
         operator fun invoke() = Filter { next ->
-            HttpHandler {
+            {
                 next(it).let { response ->
                     response.header("content-encoding")
                         ?.let { if (it.contains("gzip")) it else null }

@@ -31,14 +31,13 @@ data class ContractRoutingHttpHandler(private val renderer: ContractRenderer,
 
     private val standardFilters = preSecurityFilter.then(security.filter).then(postSecurityFilter)
 
-    private val handler: HttpHandler = HttpHandler {
-        match(it)?.invoke(it)
-            ?: standardFilters.then(HttpHandler { Response(NOT_FOUND.description("Route not found")) })(it)
+    private val handler: HttpHandler = {
+        match(it)?.invoke(it) ?: standardFilters.then { Response(NOT_FOUND.description("Route not found")) }(it)
     }
 
     override suspend fun invoke(request: Request): Response = handler(request)
 
-    private val descriptionRoute = ContractRouteSpec0({ PathSegments("$it$descriptionPath") }, RouteMeta()) bindContract GET to HttpHandler { renderer.description(contractRoot, security, routes) }
+    private val descriptionRoute = ContractRouteSpec0({ PathSegments("$it$descriptionPath") }, RouteMeta()) bindContract GET to { renderer.description(contractRoot, security, routes) }
 
     private val routers: List<Pair<Filter, Router>> = routes
         .map { CatchLensFailure.then(identify(it)).then(standardFilters) to it.toRouter(contractRoot) }
@@ -58,7 +57,7 @@ data class ContractRoutingHttpHandler(private val renderer: ContractRenderer,
     private fun identify(route: ContractRoute): Filter =
         route.describeFor(contractRoot).let { routeIdentity ->
             Filter { next ->
-                HttpHandler {
+                {
                     val xUriTemplate = UriTemplate.from(if (routeIdentity.isEmpty()) "/" else routeIdentity)
                     RoutedResponse(next(RoutedRequest(it, xUriTemplate)), xUriTemplate)
                 }

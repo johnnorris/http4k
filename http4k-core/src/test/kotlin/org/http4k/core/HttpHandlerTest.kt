@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class HttpHandlerTest {
     @Test
     fun basic_handler() {
-        val handler = HttpHandler { Response(Status.OK) }
+        val handler = { _: Request -> Response(Status.OK) }
         val response = handler(Request(Method.GET, "irrelevant"))
         assertThat(response, equalTo(Response(Status.OK)))
     }

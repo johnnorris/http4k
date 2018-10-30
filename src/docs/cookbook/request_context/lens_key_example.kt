@@ -1,6 +1,14 @@
 package cookbook.request_context
 
-import org.http4k.core.*
+import org.http4k.core.Filter
+import org.http4k.core.HttpHandler
+import org.http4k.core.Method
+import org.http4k.core.Request
+import org.http4k.core.RequestContexts
+import org.http4k.core.Response
+import org.http4k.core.Status
+import org.http4k.core.then
+import org.http4k.core.with
 import org.http4k.filter.ServerFilters
 import org.http4k.lens.RequestContextKey
 import org.http4k.lens.RequestContextLens
@@ -11,12 +19,12 @@ fun main(args: Array<String>) {
 
 
     fun AddState(key: RequestContextLens<SharedState>) = Filter { next ->
-        HttpHandler {
+        {
             // "modify" the request like any other Lens
             next(it.with(key of SharedState("hello there")))
         }
     }
-    fun PrintState(key: RequestContextLens<SharedState>): HttpHandler = HttpHandler { request ->
+    fun PrintState(key: RequestContextLens<SharedState>): HttpHandler = { request ->
         // we can just extract the Lens state from the request like any other standard Lens
         println(key.extract(request))
         Response(Status.OK)

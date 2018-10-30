@@ -5,12 +5,19 @@ import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
 import org.http4k.asByteBuffer
-import org.http4k.core.*
+import org.http4k.core.Body
+import org.http4k.core.ContentType
+import org.http4k.core.HttpHandler
+import org.http4k.core.Method
 import org.http4k.core.Method.GET
 import org.http4k.core.Method.POST
+import org.http4k.core.Request
+import org.http4k.core.Response
 import org.http4k.core.Status.Companion.ACCEPTED
 import org.http4k.core.Status.Companion.INTERNAL_SERVER_ERROR
 import org.http4k.core.Status.Companion.OK
+import org.http4k.core.StreamBody
+import org.http4k.core.with
 import org.http4k.hamkrest.hasBody
 import org.http4k.hamkrest.hasStatus
 import org.http4k.lens.binary
@@ -19,7 +26,7 @@ import org.http4k.routing.routes
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.util.*
+import java.util.Random
 
 
 abstract class ServerContract(private val serverConfig: (Int) -> ServerConfig, private val client: HttpHandler,
@@ -36,28 +43,28 @@ abstract class ServerContract(private val serverConfig: (Int) -> ServerConfig, p
     private val random = (0 until size).map { '.' }.joinToString("")
 
     private val routes =
-        requiredMethods.map { method ->
-            "/" + method.name bind method to HttpHandler { Response(OK).body(method.name) }
-        }.plus(listOf(
-            "/headers" bind GET to {
-                Response(ACCEPTED)
-                    .header("content-type", "text/plain")
-            },
-            "/large" bind GET to { Response(OK).body((0..size).map { '.' }.joinToString("")) },
-            "/large" bind POST to { Response(OK).body((0..size).map { '.' }.joinToString("")) },
-            "/stream" bind GET to { Response(OK).with(Body.binary(ContentType.TEXT_PLAIN).toLens() of Body("hello".asByteBuffer())) },
-            "/presetlength" bind GET to { Response(OK).header("Content-Length", "0") },
-            "/echo" bind POST to { req: Request -> Response(OK).body(req.bodyString()) },
-            "/request-headers" bind GET to { request: Request -> Response(OK).body(request.headerValues("foo").joinToString(", ")) },
-            "/length" bind HttpHandler { req: Request ->
-                when (req.body) {
-                    is StreamBody -> Response(OK).body(req.body.length.toString())
-                    else -> Response(INTERNAL_SERVER_ERROR)
-                }
-            },
-            "/uri" bind GET to { req: Request -> Response(OK).body(req.uri.toString()) },
-            "/boom" bind GET to { throw IllegalArgumentException("BOOM!") }
-        ))
+            requiredMethods.map {
+                "/" + it.name bind it to { _: Request -> Response(OK).body(it.name) }
+            }.plus(listOf(
+                    "/headers" bind GET to { _: Request ->
+                        Response(ACCEPTED)
+                                .header("content-type", "text/plain")
+                    },
+                    "/large" bind GET to { Response(OK).body((0..size).map { '.' }.joinToString("")) },
+                    "/large" bind POST to { Response(OK).body((0..size).map { '.' }.joinToString("")) },
+                    "/stream" bind GET to { Response(OK).with(Body.binary(ContentType.TEXT_PLAIN).toLens() of Body("hello".asByteBuffer())) },
+                    "/presetlength" bind GET to { Response(OK).header("Content-Length", "0") },
+                    "/echo" bind POST to { req: Request -> Response(OK).body(req.bodyString()) },
+                    "/request-headers" bind GET to { request: Request -> Response(OK).body(request.headerValues("foo").joinToString(", ")) },
+                    "/length" bind { req: Request ->
+                        when (req.body) {
+                            is StreamBody -> Response(OK).body(req.body.length.toString())
+                            else -> Response(INTERNAL_SERVER_ERROR)
+                        }
+                    },
+                    "/uri" bind GET to { req: Request -> Response(OK).body(req.uri.toString()) },
+                    "/boom" bind GET to { _: Request -> throw IllegalArgumentException("BOOM!") }
+            ))
 
     @BeforeEach
     fun before() {
@@ -111,7 +118,7 @@ abstract class ServerContract(private val serverConfig: (Int) -> ServerConfig, p
     @Test
     fun `length is set on body if it is sent`() {
         val response = client(Request(POST, "http://localhost:$port/length")
-            .body("12345").header("Content-Length", "5"))
+                .body("12345").header("Content-Length", "5"))
         response shouldMatch hasStatus(OK).and(hasBody("5"))
     }
 

@@ -30,14 +30,14 @@ data class JsonRpcService<NODE : Any>(
     private val methods = bindings.map { it.name to it.handler }.toMap()
 
     private val handler = CatchLensFailure { Response(OK).with(jsonLens of renderError(ParseError)) }
-        .then(Filter { next -> HttpHandler { if (it.method == POST) next(it) else Response(METHOD_NOT_ALLOWED) } })
-        .then(HttpHandler {
+        .then(Filter { next -> { if (it.method == POST) next(it) else Response(METHOD_NOT_ALLOWED) } })
+        .then {
             val responseJson = process(jsonLens(it))
             when (responseJson) {
                 null -> Response(NO_CONTENT).with(CONTENT_TYPE of APPLICATION_JSON)
                 else -> Response(OK).with(jsonLens of responseJson)
             }
-        })
+        }
 
     suspend fun invoke(request: Request): Response = handler(request)
 

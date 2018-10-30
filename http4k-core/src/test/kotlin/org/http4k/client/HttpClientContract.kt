@@ -5,9 +5,20 @@ import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.containsSubstring
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import org.http4k.core.*
-import org.http4k.core.Method.*
+import org.http4k.core.Body
+import org.http4k.core.HttpHandler
+import org.http4k.core.Method
+import org.http4k.core.Method.DELETE
+import org.http4k.core.Method.GET
+import org.http4k.core.Method.OPTIONS
+import org.http4k.core.Method.POST
+import org.http4k.core.Method.PUT
+import org.http4k.core.Method.TRACE
+import org.http4k.core.Request
+import org.http4k.core.Response
+import org.http4k.core.Status
 import org.http4k.core.Status.Companion.OK
+import org.http4k.core.then
 import org.http4k.filter.ClientFilters
 import org.http4k.filter.ServerFilters
 import org.http4k.server.ServerConfig
@@ -30,7 +41,7 @@ abstract class HttpClientContract(serverConfig: (Int) -> ServerConfig,
 
     @Test
     fun `supports gzipped content`() {
-        val asServer = ServerFilters.GZip().then(HttpHandler { Response(Status.OK).body("hello") }).asServer(SunHttp(0))
+        val asServer = ServerFilters.GZip().then { Response(Status.OK).body("hello") }.asServer(SunHttp(0))
         asServer.start()
         val client = JavaHttpClient()
 
@@ -44,8 +55,8 @@ abstract class HttpClientContract(serverConfig: (Int) -> ServerConfig,
     @Test
     fun `can make call`() {
         val response = client(Request(POST, "http://localhost:$port/someUri")
-            .query("query", "123")
-            .header("header", "value").body("body"))
+                .query("query", "123")
+                .header("header", "value").body("body"))
 
         assertThat(response.status, equalTo(OK))
         assertThat(response.header("uri"), equalTo("/someUri?query=123"))
@@ -125,7 +136,7 @@ abstract class HttpClientContract(serverConfig: (Int) -> ServerConfig,
     @Test
     fun `redirection response`() {
         val response = ClientFilters.FollowRedirects()
-            .then(client)(Request(GET, "http://localhost:$port/relative-redirect/5"))
+                .then(client)(Request(GET, "http://localhost:$port/relative-redirect/5"))
         response.status.shouldMatch(equalTo(OK))
         response.bodyString().shouldMatch(anything)
     }

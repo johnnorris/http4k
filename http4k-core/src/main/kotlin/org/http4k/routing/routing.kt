@@ -67,8 +67,6 @@ fun Request.path(name: String): String? = when (this) {
 }
 
 data class PathMethod(val path: String, val method: Method) {
-    infix fun to(action: suspend (Request) -> Response): RoutingHttpHandler = this to action
-
     infix fun to(action: HttpHandler): RoutingHttpHandler =
         when (action) {
             //FIXME

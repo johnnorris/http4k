@@ -35,7 +35,7 @@ object ProxyApp {
     }
 
     private val rewriteUriToLocalhostAsWeDoNotHaveDns = Filter { next ->
-        HttpHandler {
+        {
             println("Rewriting ${it.uri} so we can proxy properly")
             next(it.uri(it.uri.authority("localhost:9000")))
         }
@@ -53,7 +53,7 @@ val environmentSetByK8s = Environment.from(
 fun main(args: Array<String>) {
 
     // start the other service
-    HttpHandler { Response(OK).body("HELLO!") }.asServer(SunHttp(9000)).start().use {
+    { _: Request -> Response(OK).body("HELLO!") }.asServer(SunHttp(9000)).start().use {
 
         // start our service with the environment set by K8S
         ProxyApp(environmentSetByK8s).start().use {

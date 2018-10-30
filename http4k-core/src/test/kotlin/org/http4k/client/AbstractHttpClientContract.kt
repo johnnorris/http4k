@@ -1,7 +1,6 @@
 package org.http4k.client
 
 import kotlinx.coroutines.runBlocking
-import org.http4k.core.HttpHandler
 import org.http4k.core.Method.*
 import org.http4k.core.Request
 import org.http4k.core.Response
@@ -17,7 +16,6 @@ import org.http4k.routing.path
 import org.http4k.routing.routes
 import org.http4k.server.Http4kServer
 import org.http4k.server.ServerConfig
-import org.http4k.server.asServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import java.util.*
@@ -35,7 +33,7 @@ abstract class AbstractHttpClientContract(private val serverConfig: (Int) -> Ser
     @BeforeEach
     fun before() {
         runBlocking {
-            val defaultHandler: HttpHandler = { request: Request ->
+            val defaultHandler = { request: Request ->
                 Response(OK)
                     .header("uri", request.uri.toString())
                     .header("header", request.header("header"))
@@ -75,7 +73,7 @@ abstract class AbstractHttpClientContract(private val serverConfig: (Int) -> Ser
                     val status = Status(r.path("status")!!.toInt(), "")
                     Response(status).body("body for status ${status.code}")
                 })
-            server = app::invoke.asServer(serverConfig(0)).start()
+            server = app.asServer(serverConfig(0)).start()
         }
     }
 

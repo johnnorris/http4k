@@ -79,7 +79,7 @@ open class StaticRoutingHttpHandlerTest : RoutingHttpHandlerContract() {
     @Test
     fun `can apply filters`() {
         val rewritePathToRootIndex = Filter { next ->
-            HttpHandler {
+            {
                 next(it.uri(it.uri.path("/index.html")))
             }
         }
@@ -169,7 +169,7 @@ open class StaticRoutingHttpHandlerTest : RoutingHttpHandlerContract() {
     @Test
     fun `can add filter to router`() {
         val changePathFilter = Filter { next ->
-            HttpHandler  { next(it.uri(it.uri.path("/svc/mybob.xml"))) }
+            { next(it.uri(it.uri.path("/svc/mybob.xml"))) }
         }
         val handler = "/svc" bind changePathFilter.then(static())
         val req = Request(GET, of("/svc/notmybob.xml"))
@@ -180,7 +180,7 @@ open class StaticRoutingHttpHandlerTest : RoutingHttpHandlerContract() {
     fun `can add filter to a RoutingHttpHandler`() {
         val calls = AtomicInteger(0)
         val changePathFilter = Filter { next ->
-            HttpHandler {
+            {
                 calls.incrementAndGet()
                 next(it.uri(it.uri.path("/svc/mybob.xml")))
             }
@@ -193,7 +193,7 @@ open class StaticRoutingHttpHandlerTest : RoutingHttpHandlerContract() {
 
     @Test
     fun `application of filter - nested and first`() {
-        val handler = routes("/first" bind static(), "/second" bind GET to HttpHandler { Response(INTERNAL_SERVER_ERROR) })
+        val handler = routes("/first" bind static(), "/second" bind GET to { _: Request -> Response(INTERNAL_SERVER_ERROR) })
 
         handler.assertFilterCalledOnce("/first/mybob.xml", OK)
         handler.assertFilterCalledOnce("/first/notmybob.xml", NOT_FOUND)
@@ -204,9 +204,9 @@ open class StaticRoutingHttpHandlerTest : RoutingHttpHandlerContract() {
     @Test
     fun `application of filter - nested and middle`() {
         val handler = routes(
-            "/first" bind GET to HttpHandler { Response(INTERNAL_SERVER_ERROR) },
+            "/first" bind GET to { _: Request -> Response(INTERNAL_SERVER_ERROR) },
             "/second" bind static(),
-            "/third" bind GET to HttpHandler { Response(I_M_A_TEAPOT) }
+            "/third" bind GET to { _: Request -> Response(I_M_A_TEAPOT) }
         )
 
         handler.assertFilterCalledOnce("/first", INTERNAL_SERVER_ERROR)
@@ -219,8 +219,8 @@ open class StaticRoutingHttpHandlerTest : RoutingHttpHandlerContract() {
     @Test
     fun `application of filter - nested and last`() {
         val handler = routes(
-            "/first" bind GET to HttpHandler { Response(INTERNAL_SERVER_ERROR) },
-            "/second" bind GET to HttpHandler { Response(I_M_A_TEAPOT) },
+            "/first" bind GET to { _: Request -> Response(INTERNAL_SERVER_ERROR) },
+            "/second" bind GET to { _: Request -> Response(I_M_A_TEAPOT) },
             "/third" bind static()
         )
         handler.assertFilterCalledOnce("/first", INTERNAL_SERVER_ERROR)
@@ -247,7 +247,7 @@ open class StaticRoutingHttpHandlerTest : RoutingHttpHandlerContract() {
 
     private fun RoutingHttpHandler.assertFilterCalledOnce(path: String, expected: Status) {
         val calls = AtomicInteger(0)
-        val handler = Filter { next -> HttpHandler { calls.incrementAndGet(); next(it) } }.then(this)
+        val handler = Filter { next -> { calls.incrementAndGet(); next(it) } }.then(this)
         assertThat(handler(Request(GET, of(path))).status, equalTo(expected))
         assertThat(calls.get(), equalTo(1))
     }

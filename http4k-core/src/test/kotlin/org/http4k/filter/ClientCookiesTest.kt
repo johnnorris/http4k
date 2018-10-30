@@ -2,9 +2,13 @@ package org.http4k.filter
 
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.should.shouldMatch
-import org.http4k.core.*
+import org.http4k.core.Method
+import org.http4k.core.Request
+import org.http4k.core.Response
+import org.http4k.core.Status
 import org.http4k.core.cookie.Cookie
 import org.http4k.core.cookie.cookie
+import org.http4k.core.then
 import org.http4k.filter.cookie.BasicCookieStorage
 import org.http4k.hamkrest.hasBody
 import org.http4k.hamkrest.hasHeader
@@ -20,7 +24,7 @@ class ClientCookiesTest {
 
     @Test
     fun `can store and send cookies across multiple calls`() {
-        val server = HttpHandler { request: Request -> Response(Status.OK).counterCookie(request.counterCookie() + 1) }
+        val server = { request: Request -> Response(Status.OK).counterCookie(request.counterCookie() + 1) }
 
         val client = ClientFilters.Cookies().then(server)
 
@@ -32,7 +36,7 @@ class ClientCookiesTest {
 
     @Test
     fun `expired cookies are removed from storage and not sent`() {
-        val server = HttpHandler { request: Request ->
+        val server = { request: Request ->
             when (request.uri.path) {
                 "/set" -> Response(Status.OK).cookie(Cookie("foo", "bar", 5))
                 else -> Response(Status.OK).body(request.cookie("foo")?.value ?: "gone")
@@ -68,11 +72,10 @@ class ClientCookiesTest {
     fun `cookie expiry uses the same timezone as cookie parsing`() {
         val zoneId = ZoneId.of("Europe/London")
 
-        val cookie = Cookie.parse("foo=bar;Path=/;Expires=Thu, 25-Oct-2018 10:00:00 GMT;HttpOnly")
-            ?: fail("Couldn't parse cookie")
+        val cookie = Cookie.parse("foo=bar;Path=/;Expires=Thu, 25-Oct-2018 10:00:00 GMT;HttpOnly") ?: fail("Couldn't parse cookie")
         // this was 11:00:00 in Europe/London due to daylight savings
 
-        val server = HttpHandler { request: Request ->
+        val server = { request: Request ->
             when (request.uri.path) {
                 "/set" -> Response(Status.OK).cookie(cookie)
                 else -> Response(Status.OK).body(request.cookie("foo")?.value ?: "gone")

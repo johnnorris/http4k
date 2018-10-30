@@ -45,14 +45,14 @@ object ChaosControls {
             corsPolicy: CorsPolicy = UnsafeGlobalPermissive
 
     ): RoutingHttpHandler {
-        val showCurrentStatus: HttpHandler = HttpHandler {
+        val showCurrentStatus: HttpHandler = {
             Response(OK).with(Body.json().toLens() of obj(
                     "chaos" to string(if (trigger.isActive()) variable.toString() else "none")
             ))
         }
 
         val activate = Filter { next ->
-            HttpHandler {
+            {
                 if (it.body.stream.available() != 0) variable.current = setStages(it)
                 trigger.toggle(true)
                 next(it)
@@ -60,14 +60,14 @@ object ChaosControls {
         }
 
         val deactivate = Filter { next ->
-            HttpHandler {
+            {
                 trigger.toggle(false)
                 next(it)
             }
         }
 
         val toggle = Filter { next ->
-            HttpHandler {
+            {
                 trigger.toggle()
                 next(it)
             }

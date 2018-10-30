@@ -14,13 +14,13 @@ fun main(args: Array<String>) {
     data class SharedState(val message: String)
 
     fun AddState(contexts: RequestContexts) = Filter { next ->
-        HttpHandler {
+        {
             contexts[it].set("myKey", SharedState("hello there"))
             next(it)
         }
     }
 
-    fun PrintState(contexts: RequestContexts): HttpHandler = HttpHandler { request ->
+    fun PrintState(contexts: RequestContexts): HttpHandler = { request ->
         println(contexts[request].get<SharedState>("myKey"))
         Response(Status.OK)
     }
