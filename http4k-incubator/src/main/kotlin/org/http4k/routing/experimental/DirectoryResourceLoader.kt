@@ -11,9 +11,9 @@ internal data class DirectoryResourceLoader(
     val directoryRenderer: DirectoryRenderer? = null
 ) : ResourceLoading {
 
-    override fun match(path: String): HttpHandler? = with(File(baseDir.pathJoin(path))) {
+    override suspend fun match(path: String): HttpHandler? = with(File(baseDir.pathJoin(path))) {
         when {
-            isFile -> FileResource(this, mimeTypes.forFile(path))
+            isFile -> FileResource(this, mimeTypes.forFile(path))::invoke
             isDirectory -> match(indexFileIn(path)) ?: directoryRenderer?.let { directoryRenderingHandler(this, it) }
             else -> null
         }

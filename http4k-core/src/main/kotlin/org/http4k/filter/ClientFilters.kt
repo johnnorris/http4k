@@ -21,7 +21,7 @@ object ClientFilters {
         operator fun invoke(
                 startReportFn: (Request, ZipkinTraces) -> Unit = { _, _ -> },
                 endReportFn: (Request, Response, ZipkinTraces) -> Unit = { _, _, _ -> }): Filter = Filter { next ->
-            HttpHandler {
+            {
                 THREAD_LOCAL.get().run {
                     val updated = copy(parentSpanId = spanId, spanId = TraceId.new())
                     startReportFn(it, updated)
@@ -39,7 +39,7 @@ object ClientFilters {
      */
     object SetHostFrom {
         operator fun invoke(uri: Uri): Filter = Filter { next ->
-            HttpHandler {
+            {
                 next(it.uri(it.uri.scheme(uri.scheme).host(uri.host).port(uri.port))
                         .replaceHeader("Host", "${uri.host}${uri.port?.let { port -> ":$port" } ?: ""}"))
             }
@@ -51,14 +51,14 @@ object ClientFilters {
      * from the logic required to construct the rest of the request.
      */
     object SetBaseUriFrom {
-        operator fun invoke(uri: Uri): Filter = SetHostFrom(uri).then(Filter { next ->
-            HttpHandler { request -> next(request.uri(uri.extend(request.uri))) }
+        suspend operator fun invoke(uri: Uri): Filter = SetHostFrom(uri).then(Filter { next ->
+            { request -> next(request.uri(uri.extend(request.uri))) }
         })
     }
 
     object BasicAuth {
         operator fun invoke(provider: () -> Credentials): Filter = Filter { next ->
-            HttpHandler { next(it.header("Authorization", "Basic ${provider().base64Encoded()}")) }
+            { next(it.header("Authorization", "Basic ${provider().base64Encoded()}")) }
         }
 
         operator fun invoke(user: String, password: String): Filter = BasicAuth(Credentials(user, password))
@@ -69,16 +69,16 @@ object ClientFilters {
 
     object BearerAuth {
         operator fun invoke(provider: () -> String): Filter = Filter { next ->
-            HttpHandler { next(it.header("Authorization", "Bearer ${provider()}")) }
+            { next(it.header("Authorization", "Bearer ${provider()}")) }
         }
 
         operator fun invoke(token: String): Filter = BearerAuth { token }
     }
 
     object FollowRedirects {
-        operator fun invoke(): Filter = Filter { next -> HttpHandler { makeRequest(next, it) } }
+        operator fun invoke(): Filter = Filter { next -> { makeRequest(next, it) } }
 
-        private fun makeRequest(next: HttpHandler, request: Request, attempt: Int = 1): Response =
+        private suspend fun makeRequest(next: HttpHandler, request: Request, attempt: Int = 1): Response =
             next(request).let {
                 if (it.isRedirection()) {
                     if (attempt == 10) throw IllegalStateException("Too many redirection")
@@ -107,7 +107,7 @@ object ClientFilters {
     object Cookies {
         operator fun invoke(clock: Clock = Clock.systemDefaultZone(),
                             storage: CookieStorage = BasicCookieStorage()): Filter = Filter { next ->
-            HttpHandler { request ->
+            { request ->
                 val now = clock.now()
                 removeExpired(now, storage)
                 val response = next(request.withLocalCookies(storage))
@@ -130,7 +130,7 @@ object ClientFilters {
      * Only Gunzip responses when the response contains "transfer-encoding" header containing 'gzip'
      */
     object GZip {
-        operator fun invoke(): Filter = RequestFilters.GZip().then(ResponseFilters.GunZip())
+        suspend operator fun invoke(): Filter = RequestFilters.GZip().then(ResponseFilters.GunZip())
     }
 
 }

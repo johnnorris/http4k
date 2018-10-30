@@ -19,23 +19,22 @@ internal data class StaticRoutingHttpHandler(
 
     override fun withBasePath(new: String): RoutingHttpHandler = copy(pathSegments = new + pathSegments)
 
-    private val handlerNoFilter = ResourceLoadingHandler(pathSegments, resourceLoader)
+    private val handlerNoFilter = ResourceLoadingHandler(pathSegments, resourceLoader)::invoke
     private val handlerWithFilter = filter.then(handlerNoFilter)
 
-    override fun match(request: Request): HttpHandler? = handlerNoFilter(request).let { resp ->
-        if (resp.status != NOT_FOUND) filter.then(HttpHandler { resp }) else null
+    override suspend fun match(request: Request): HttpHandler? = handlerNoFilter(request).let {
+        if (it.status != NOT_FOUND) filter.then { _: Request -> it } else null
     }
 
-    override fun invoke(request: Request): Response = handlerWithFilter(request)
+    override suspend fun invoke(request: Request): Response = handlerWithFilter(request)
 }
 
 
 internal class ResourceLoadingHandler(
     private val pathSegments: String,
     private val resourceLoader: Router
-) : HttpHandler {
-
-    override fun invoke(request: Request): Response =
+) {
+    suspend fun invoke(request: Request): Response =
         if (request.method == GET && request.uri.path.startsWith(pathSegments))
             resourceLoader.match(request.uri(of(convertPath(request.uri.path))))?.invoke(request) ?: Response(NOT_FOUND)
         else

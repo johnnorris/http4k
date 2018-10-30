@@ -1,5 +1,6 @@
 package org.http4k.webdriver
 
+import kotlinx.coroutines.runBlocking
 import org.http4k.core.*
 import org.http4k.core.Method.GET
 import org.http4k.filter.ClientFilters
@@ -24,7 +25,7 @@ interface Http4KNavigation : Navigation {
 class Http4kWebDriver(initialHandler: HttpHandler) : WebDriver {
     private val handler = ClientFilters.FollowRedirects()
         .then(ClientFilters.Cookies(storage = cookieStorage()))
-        .then(Filter { next -> HttpHandler { request -> latestUri = request.uri.toString(); next(request) } })
+        .then(Filter { next -> { request -> latestUri = request.uri.toString(); next(request) } })
         .then(initialHandler)
 
     private var current: Page? = null
@@ -34,7 +35,7 @@ class Http4kWebDriver(initialHandler: HttpHandler) : WebDriver {
 
     private fun navigateTo(request: Request) {
         val normalizedPath = request.uri(request.uri.path(normalized(request.uri.path)))
-        val response = handler(normalizedPath)
+        val response = runBlocking { handler(normalizedPath) }
         current = Page(response.status, this::navigateTo, { currentUrl }, UUID.randomUUID(), normalized(latestUri), response.bodyString(), current)
     }
 
@@ -120,7 +121,7 @@ class Http4kWebDriver(initialHandler: HttpHandler) : WebDriver {
 
         override fun refresh() {
             current?.let {
-                current = it.copy(contents = handler(Request(GET, it.url)).bodyString())
+                current = it.copy(contents = runBlocking { handler(Request(GET, it.url)).bodyString() })
             }
         }
 

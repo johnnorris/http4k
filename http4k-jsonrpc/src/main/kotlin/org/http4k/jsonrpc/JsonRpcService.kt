@@ -24,7 +24,7 @@ import org.http4k.lens.LensFailure
 data class JsonRpcService<NODE : Any>(
     private val json: Json<NODE>,
     private val errorHandler: ErrorHandler,
-    private val bindings: Iterable<JsonRpcMethodBinding<NODE, NODE>>) : HttpHandler {
+    private val bindings: Iterable<JsonRpcMethodBinding<NODE, NODE>>) {
 
     private val jsonLens = json.body("JSON-RPC request", StrictNoDirective).toLens()
     private val methods = bindings.map { it.name to it.handler }.toMap()
@@ -39,7 +39,7 @@ data class JsonRpcService<NODE : Any>(
             }
         })
 
-    override fun invoke(request: Request): Response = handler(request)
+    suspend fun invoke(request: Request): Response = handler(request)
 
     private fun process(requestJson: NODE): NODE? = when (json.typeOf(requestJson)) {
         Object -> processSingleRequest(json.fields(requestJson).toMap())

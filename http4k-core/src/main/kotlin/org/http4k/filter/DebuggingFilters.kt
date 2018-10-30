@@ -42,6 +42,6 @@ object DebuggingFilters {
      * Print details of a request and it's response.
      */
     object PrintRequestAndResponse {
-        operator fun invoke(out: PrintStream = System.out, debugStream: Boolean = defaultDebugStream) = PrintRequest(out, debugStream).then(PrintResponse(out, debugStream))
+        suspend operator fun invoke(out: PrintStream = System.out, debugStream: Boolean = defaultDebugStream) = PrintRequest(out, debugStream).then(PrintResponse(out, debugStream))
     }
 }

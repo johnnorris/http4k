@@ -23,7 +23,7 @@ object ResourceLoaders {
                 constantLastModified: Instant? = Instant.now().truncatedTo(SECONDS),
                 lastModifiedFinder: (path: String) -> Instant? = { constantLastModified }
         ): Router = object : ResourceLoading {
-            override fun match(path: String): Resource? {
+            override suspend fun match(path: String): Resource? {
                 val resourcePath = basePackagePath.withLeadingSlash().pathJoin(path.orIndexFile())
                 return javaClass.getResource(resourcePath)?.toResource(mimeTypes.forFile(resourcePath), lastModifiedFinder(resourcePath))
             }
@@ -48,7 +48,7 @@ object ResourceLoaders {
  */
 interface ResourceLoading : Router {
 
-    fun match(path: String): HttpHandler?
+    suspend fun match(path: String): HttpHandler?
 
-    override fun match(request: Request): HttpHandler? = match(request.uri.path)
+    override suspend fun match(request: Request): HttpHandler? = match(request.uri.path)
 }

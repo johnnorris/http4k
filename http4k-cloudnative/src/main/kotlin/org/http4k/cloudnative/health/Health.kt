@@ -1,15 +1,11 @@
 package org.http4k.cloudnative.health
 
 import org.http4k.core.HttpHandler
-import org.http4k.core.Method.GET
-import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status.Companion.OK
 import org.http4k.core.Status.Companion.SERVICE_UNAVAILABLE
 import org.http4k.core.with
 import org.http4k.lens.Header.CONTENT_TYPE
-import org.http4k.routing.bind
-import org.http4k.routing.routes
 
 /**
  * Represents the set of operational endpoints to ensure that a particular pod is working ok.
@@ -17,17 +13,21 @@ import org.http4k.routing.routes
 object Health {
     operator fun invoke(
         renderer: ReadinessCheckResultRenderer = DefaultReadinessCheckResultRenderer,
-        checks: List<ReadinessCheck> = emptyList()) = routes(
-        "/liveness" bind GET to Liveness,
-        "/readiness" bind GET to Readiness(checks, renderer)
-    )
+        checks: List<ReadinessCheck> = emptyList()): HttpHandler {
+        // FIXME
+//        val routes: HttpHandler = routes(
+//            "/liveness" bind GET to Liveness,
+//            "/readiness" bind GET to Readiness(checks, renderer)
+//        )
+        return { Response(OK)}
+    }
 }
 
 /**
  * The Liveness check is used to determine if an app is alive.
  */
-object Liveness : HttpHandler {
-    override fun invoke(request: Request): Response = Response(OK)
+object Liveness {
+    operator fun invoke(): HttpHandler = { Response(OK) }
 }
 
 /**
@@ -38,7 +38,7 @@ object Readiness {
         checks: List<ReadinessCheck> = emptyList(),
         renderer: ReadinessCheckResultRenderer = DefaultReadinessCheckResultRenderer
     ): HttpHandler =
-        HttpHandler {
+        {
             val overall = when {
                 checks.isNotEmpty() -> checks.map { check ->
                     try {

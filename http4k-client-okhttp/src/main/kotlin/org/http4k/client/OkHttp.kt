@@ -5,7 +5,10 @@ import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.create
 import okhttp3.internal.http.HttpMethod.permitsRequestBody
-import org.http4k.core.*
+import org.http4k.core.BodyMode
+import org.http4k.core.Request
+import org.http4k.core.Response
+import org.http4k.core.Status
 import org.http4k.core.Status.Companion.CLIENT_TIMEOUT
 import org.http4k.core.Status.Companion.CONNECTION_REFUSED
 import org.http4k.core.Status.Companion.SERVICE_UNAVAILABLE
@@ -15,9 +18,9 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
-class OkHttp(private val client: OkHttpClient = defaultOkHttpClient(), private val bodyMode: BodyMode = BodyMode.Memory) : HttpHandler, AsyncHttpClient {
+class OkHttp(private val client: OkHttpClient = defaultOkHttpClient(), private val bodyMode: BodyMode = BodyMode.Memory): AsyncHttpClient {
 
-    override fun invoke(request: Request): Response =
+    suspend fun invoke(request: Request): Response =
         try {
             client.newCall(request.asOkHttp()).execute().asHttp4k(bodyMode)
         } catch (e: ConnectException) {

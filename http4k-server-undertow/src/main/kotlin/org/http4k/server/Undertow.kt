@@ -5,13 +5,8 @@ import io.undertow.UndertowOptions.ENABLE_HTTP2
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.handlers.BlockingHandler
 import io.undertow.util.HttpString
-import org.http4k.core.HttpHandler
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Uri
-import org.http4k.core.safeLong
-import org.http4k.core.then
+import kotlinx.coroutines.runBlocking
+import org.http4k.core.*
 import org.http4k.filter.ServerFilters
 import java.net.InetSocketAddress
 
@@ -36,7 +31,7 @@ class HttpUndertowHandler(handler: HttpHandler) : io.undertow.server.HttpHandler
             .body(inputStream, requestHeaders.getFirst("Content-Length").safeLong())
 
     override fun handleRequest(exchange: HttpServerExchange) {
-        if (exchange.isInIoThread) exchange.dispatch(this) else safeHandler(exchange.asRequest()).into(exchange)
+        if (exchange.isInIoThread) exchange.dispatch(this) else runBlocking { safeHandler(exchange.asRequest()).into(exchange) }
     }
 }
 
@@ -52,6 +47,6 @@ data class Undertow(val port: Int = 8000, val enableHttp2: Boolean = false) : Se
 
             override fun stop() = apply { server.stop() }
 
-            override fun port(): Int = if(port > 0) port else (server.listenerInfo[0].address as InetSocketAddress).port
+            override fun port(): Int = if (port > 0) port else (server.listenerInfo[0].address as InetSocketAddress).port
         }
 }

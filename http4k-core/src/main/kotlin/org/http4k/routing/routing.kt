@@ -12,7 +12,7 @@ interface Router {
     /**
      * Attempt to supply an HttpHandler which can service the passed request.
      */
-    fun match(request: Request): HttpHandler?
+    suspend fun match(request: Request): HttpHandler?
 }
 
 /**
@@ -23,7 +23,10 @@ interface Router {
  * implementations that already exist. The interface is public only because we have not found a way to hide it from
  * the API user in an API-consistent manner.
  */
-interface RoutingHttpHandler : Router, HttpHandler {
+interface RoutingHttpHandler : Router {
+
+    suspend operator fun invoke(request: Request): Response
+
     /**
      * Returns a RoutingHttpHandler which applies the passed Filter to all received requests before servicing them.
      * To follow the trend of immutability, this will generally be a new instance.
@@ -67,17 +70,18 @@ data class PathMethod(val path: String, val method: Method) {
     infix fun to(action: suspend (Request) -> Response): RoutingHttpHandler = this to action
 
     infix fun to(action: HttpHandler): RoutingHttpHandler =
-            when (action) {
-                is StaticRoutingHttpHandler -> action.withBasePath(path).let {
-                    object : RoutingHttpHandler by it {
-                        override fun match(request: Request): HttpHandler? = when (method) {
-                            request.method -> it.match(request)
-                            else -> null
-                        }
-                    }
-                }
-                else -> TemplateRoutingHttpHandler(method, UriTemplate.from(path), action)
-            }
+        when (action) {
+            //FIXME
+//                is StaticRoutingHttpHandler -> action.withBasePath(path).let {
+//                    object : RoutingHttpHandler by it {
+//                        override suspend fun match(request: Request): HttpHandler? = when (method) {
+//                            request.method -> it.match(request)
+//                            else -> null
+//                        }
+//                    }
+//                }
+            else -> TemplateRoutingHttpHandler(method, UriTemplate.from(path), action)
+        }
 }
 
 infix fun String.bind(method: Method): PathMethod = PathMethod(this, method)

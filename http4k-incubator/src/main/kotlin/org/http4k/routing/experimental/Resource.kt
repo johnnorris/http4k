@@ -1,12 +1,7 @@
 package org.http4k.routing.experimental
 
-import org.http4k.core.Body
-import org.http4k.core.ContentType
+import org.http4k.core.*
 import org.http4k.core.ContentType.Companion.OCTET_STREAM
-import org.http4k.core.Headers
-import org.http4k.core.HttpHandler
-import org.http4k.core.MemoryResponse
-import org.http4k.core.Request
 import org.http4k.core.Status.Companion.NOT_MODIFIED
 import org.http4k.core.Status.Companion.OK
 import org.http4k.core.etag.ETag
@@ -18,7 +13,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
 
-interface Resource : HttpHandler {
+interface Resource {
 
     fun openStream(): InputStream
 
@@ -40,7 +35,7 @@ interface Resource : HttpHandler {
             "ETag" to etag?.toHeaderString()
         )
 
-    override fun invoke(request: Request) = if (notModifiedSince(request) || etagMatch(request))
+    suspend fun invoke(request: Request) = if (notModifiedSince(request) || etagMatch(request))
         MemoryResponse(NOT_MODIFIED, headers)
     else
         MemoryResponse(OK, headers, Body(openStream(), length)) // Pipeline is responsible for closing stream

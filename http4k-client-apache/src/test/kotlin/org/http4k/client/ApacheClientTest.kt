@@ -1,6 +1,7 @@
 package org.http4k.client
 
 import com.natpryce.hamkrest.should.shouldMatch
+import kotlinx.coroutines.runBlocking
 import org.apache.http.HttpHost
 import org.apache.http.HttpRequest
 import org.apache.http.client.methods.CloseableHttpResponse
@@ -28,19 +29,20 @@ class ApacheClientTest : HttpClientContract({ SunHttp(it) }, ApacheClient(),
 
     @Test
     fun `connect timeout is handled`() {
-        ApacheClient(object : CloseableHttpClient() {
-            override fun getParams() = TODO("not implemented")
+        runBlocking {
+            ApacheClient(object : CloseableHttpClient() {
+                override fun getParams() = TODO("not implemented")
 
-            override fun getConnectionManager() = TODO("not implemented")
+                override fun getConnectionManager() = TODO("not implemented")
 
-            override fun doExecute(target: HttpHost?, request: HttpRequest?, context: HttpContext?): CloseableHttpResponse {
-                throw ConnectTimeoutException()
-            }
+                override fun doExecute(target: HttpHost?, request: HttpRequest?, context: HttpContext?): CloseableHttpResponse {
+                    throw ConnectTimeoutException()
+                }
 
-            override fun close() {
-            }
+                override fun close() {
+                }
 
-        })(Request(GET, "http://localhost:8000")) shouldMatch hasStatus(CLIENT_TIMEOUT)
+            })(Request(GET, "http://localhost:8000")) shouldMatch hasStatus(CLIENT_TIMEOUT)
+        }
     }
-
 }

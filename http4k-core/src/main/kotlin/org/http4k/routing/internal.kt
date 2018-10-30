@@ -11,10 +11,10 @@ import java.nio.ByteBuffer
 
 internal class ResourceLoadingHandler(private val pathSegments: String,
                                       private val resourceLoader: ResourceLoader,
-                                      extraPairs: Map<String, ContentType>) : HttpHandler {
+                                      extraPairs: Map<String, ContentType>) {
     private val extMap = MimeTypes(extraPairs)
 
-    override fun invoke(request: Request): Response = if (request.uri.path.startsWith(pathSegments)) {
+    suspend operator fun invoke(request: Request): Response = if (request.uri.path.startsWith(pathSegments)) {
         val path = convertPath(request.uri.path)
         resourceLoader.load(path)?.let { url ->
             val lookupType = extMap.forFile(path)
@@ -43,14 +43,14 @@ internal data class StaticRoutingHttpHandler(private val pathSegments: String,
 
     override fun withBasePath(new: String): RoutingHttpHandler = copy(pathSegments = new + pathSegments)
 
-    private val handlerNoFilter = ResourceLoadingHandler(pathSegments, resourceLoader, extraPairs)
+    private val handlerNoFilter : HttpHandler = ResourceLoadingHandler(pathSegments, resourceLoader, extraPairs)::invoke
     private val handlerWithFilter = filter.then(handlerNoFilter)
 
-    override fun match(request: Request): HttpHandler? = handlerNoFilter(request).let { resp ->
-        if (resp.status != NOT_FOUND) filter.then(HttpHandler { resp }) else null
+    override suspend fun match(request: Request): HttpHandler? = handlerNoFilter(request).let {
+        if (it.status != NOT_FOUND) filter.then { _: Request -> it } else null
     }
 
-    override fun invoke(request: Request): Response = handlerWithFilter(request)
+    override suspend fun invoke(request: Request): Response = handlerWithFilter(request)
 }
 
 internal data class AggregateRoutingHttpHandler(
@@ -59,9 +59,9 @@ internal data class AggregateRoutingHttpHandler(
 
     constructor(vararg list: RoutingHttpHandler) : this(list.toList())
 
-    override fun invoke(request: Request): Response = (match(request) ?: notFoundHandler)(request)
+    override suspend fun invoke(request: Request): Response = (match(request) ?: notFoundHandler)(request)
 
-    override fun match(request: Request): HttpHandler? = list.asSequence().mapNotNull { next -> next.match(request) }.firstOrNull()
+    override suspend fun match(request: Request): HttpHandler? = list.mapNotNull { next -> next.match(request) }.firstOrNull()
 
     override fun withFilter(new: Filter): RoutingHttpHandler =
         copy(list = list.map { it.withFilter(new) }, notFoundHandler = new.then(notFoundHandler))
@@ -69,7 +69,7 @@ internal data class AggregateRoutingHttpHandler(
     override fun withBasePath(new: String): RoutingHttpHandler = copy(list = list.map { it.withBasePath(new) })
 }
 
-internal val routeNotFoundHandler = HttpHandler { Response(NOT_FOUND.description("Route not found")) }
+internal val routeNotFoundHandler: HttpHandler = { Response(NOT_FOUND.description("Route not found")) }
 
 internal data class TemplateRoutingHttpHandler(
     private val method: Method?,
@@ -78,12 +78,12 @@ internal data class TemplateRoutingHttpHandler(
     private val notFoundHandler: HttpHandler = routeNotFoundHandler
 ) : RoutingHttpHandler {
 
-    override fun match(request: Request): HttpHandler? =
+    override suspend fun match(request: Request): HttpHandler? =
         if (template.matches(request.uri.path) && (method == null || method == request.method))
-            HttpHandler { r: Request -> RoutedResponse(httpHandler(RoutedRequest(r, template)), template) }
+            { r: Request -> RoutedResponse(httpHandler(RoutedRequest(r, template)), template) }
         else null
 
-    override fun invoke(request: Request): Response = (match(request) ?: notFoundHandler)(request)
+    override suspend fun invoke(request: Request): Response = (match(request) ?: notFoundHandler)(request)
 
     override fun withFilter(new: Filter): RoutingHttpHandler =
         copy(httpHandler = new.then(httpHandler), notFoundHandler = new.then(notFoundHandler))

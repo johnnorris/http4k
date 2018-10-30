@@ -7,12 +7,7 @@ import org.eclipse.jetty.client.util.InputStreamContentProvider
 import org.eclipse.jetty.client.util.InputStreamResponseListener
 import org.eclipse.jetty.http.HttpFields
 import org.eclipse.jetty.util.HttpCookieStore
-import org.http4k.core.BodyMode
-import org.http4k.core.Headers
-import org.http4k.core.HttpHandler
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Status
+import org.http4k.core.*
 import org.http4k.core.Status.Companion.CLIENT_TIMEOUT
 import org.http4k.core.Status.Companion.CONNECTION_REFUSED
 import org.http4k.core.Status.Companion.UNKNOWN_HOST
@@ -26,14 +21,14 @@ import org.eclipse.jetty.client.api.Response as JettyResponse
 
 class JettyClient(private val client: HttpClient = defaultHttpClient(),
                   private val bodyMode: BodyMode = BodyMode.Memory,
-                  private val requestModifier: (JettyRequest) -> JettyRequest = { it }) : HttpHandler, AsyncHttpClient {
+                  private val requestModifier: (JettyRequest) -> JettyRequest = { it }) : AsyncHttpClient {
     init {
         if (!client.isStarted && !client.isStarting) client.start()
     }
 
     override fun close() = client.stop()
 
-    override fun invoke(request: Request): Response = client.send(request)
+    suspend fun invoke(request: Request): Response = client.send(request)
 
     override fun invoke(request: Request, fn: (Response) -> Unit) = client.sendAsync(request, fn)
 

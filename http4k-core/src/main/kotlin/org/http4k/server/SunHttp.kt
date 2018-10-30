@@ -2,24 +2,21 @@ package org.http4k.server
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
-import org.http4k.core.HttpHandler
-import org.http4k.core.Method
-import org.http4k.core.Request
-import org.http4k.core.Response
-import org.http4k.core.Uri
-import org.http4k.core.safeLong
+import kotlinx.coroutines.runBlocking
+import org.http4k.core.*
 import java.net.InetSocketAddress
-
 
 data class SunHttp(val port: Int = 8000) : ServerConfig {
     override fun toServer(httpHandler: HttpHandler): Http4kServer = object : Http4kServer {
-        override fun port(): Int = if(port > 0) port else server.address.port
+        override fun port(): Int = if (port > 0) port else server.address.port
 
         private val server = HttpServer.create(InetSocketAddress(port), 0)
         override fun start(): Http4kServer = apply {
             server.createContext("/") {
                 try {
-                    it.populate(httpHandler(it.toRequest()))
+                    runBlocking {
+                        it.populate(httpHandler(it.toRequest()))
+                    }
                 } catch (e: Exception) {
                     it.sendResponseHeaders(500, 0)
                 }
@@ -40,6 +37,7 @@ private fun HttpExchange.populate(httpResponse: Response) {
 
 private fun HttpExchange.toRequest(): Request =
     Request(Method.valueOf(requestMethod),
-        requestURI.rawQuery?.let { Uri.of(requestURI.rawPath).query(requestURI.rawQuery) } ?: Uri.of(requestURI.rawPath))
+        requestURI.rawQuery?.let { Uri.of(requestURI.rawPath).query(requestURI.rawQuery) }
+            ?: Uri.of(requestURI.rawPath))
         .body(requestBody, requestHeaders.getFirst("Content-Length").safeLong())
         .headers(requestHeaders.toList().flatMap { (key, values) -> values.map { key to it } })
